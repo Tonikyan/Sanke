@@ -23,6 +23,7 @@ namespace Snake
         Direction direction;
         private bool lose;
         private bool started = false;
+        private bool autoPilot;
 
         public GameForm(int speed, bool arcade)
         {
@@ -55,108 +56,99 @@ namespace Snake
         }
         private void GameForm_KeyDown(object sender, KeyEventArgs e)
         {
-            switch (e.KeyCode)
-            {
-                case Keys.Left:
-                    if (directions.Count != 0)
-                    {
-                        if (directions[directions.Count - 1] != Direction.Right && directions[directions.Count - 1] != Direction.Left)
-                        {
-                            directions.Add(Direction.Left);
-                        }
-                    }
-                    else
-                    {
-                        if (direction != Direction.Right && direction != Direction.Left)
-                        {
-                            directions.Add(Direction.Left);
-                            direction = directions[0];
-                        }
-                    }
-                    break;
-                case Keys.Right:
-                    if (directions.Count != 0)
-                    {
-                        if (directions[directions.Count - 1] != Direction.Left && directions[directions.Count - 1] != Direction.Right)
-                        {
-                            directions.Add(Direction.Right);
-                        }
-                    }
-                    else
-                    {
-                        if (direction != Direction.Left && direction != Direction.Right)
-                        {
-                            directions.Add(Direction.Right);
-                            direction = directions[0];
-                        }
-                    }
-                    break;
-                case Keys.Up:
-                    if (directions.Count != 0)
-                    {
-                        if (directions[directions.Count - 1] != Direction.Down && directions[directions.Count - 1] != Direction.Up)
-                        {
-                            directions.Add(Direction.Up);
-                        }
-                    }
-                    else
-                    {
-                        if (direction != Direction.Down && direction != Direction.Up)
-                        {
-                            directions.Add(Direction.Up);
-                            direction = directions[0];
-                        }
-                    }
-                    break;
-                case Keys.Down:
-                    if (directions.Count != 0)
-                    {
-                        if (directions[directions.Count - 1] != Direction.Up && directions[directions.Count - 1] != Direction.Down)
-                        {
-                            directions.Add(Direction.Down);
-                        }
-                    }
-                    else
-                    {
-                        if (direction != Direction.Up && direction != Direction.Down)
-                        {
-                            directions.Add(Direction.Down);
-                            direction = directions[0];
-                        }
-                    }
-                    break;
-            }
             if (!started)
             {
                 Start();
             }
+            timer.Stop();
+            switch (e.KeyCode)
+            {
+                case Keys.Left:
+                    if (direction != Direction.Right)
+                    {
+                        direction = Direction.Left;
+                    }
+                    break;
+                case Keys.Right:
+                    if (direction != Direction.Left)
+                    {
+                        direction = Direction.Right;
+                    }
+                    break;
+                case Keys.Up:
+                    if (direction != Direction.Down)
+                    {
+                        direction = Direction.Up;
+                    }
+                    break;
+                case Keys.Down:
+                    if (direction != Direction.Up)
+                    {
+                        direction = Direction.Down;
+                    }
+                    break;
+                case Keys.Enter:
+                    if (!autoPilot)
+                    {
+                        autoPilot = true;
+                        AutoPilot();
+                    }
+                    else
+                    {
+                        autoPilot = false;
+                    }
+                    break;
+            }
+            Tick(null, new EventArgs());
+            timer.Start();
         }
+
+        private void AutoPilot()
+        {
+            timer.Stop();
+            directions = new List<Direction>();
+            int x = (SnakeHead.Location.X - Fruit.Location.X) / SnakeHead.Width;
+            int y = (SnakeHead.Location.Y - Fruit.Location.Y) / SnakeHead.Width;
+            Direction myDirection = x > 0 ? Direction.Left : Direction.Right;
+            for (int i = 0; i < Math.Abs(x); i++)
+            {
+                directions.Add(myDirection);
+            }
+            myDirection = y > 0 ? Direction.Up : Direction.Down;
+            for (int i = 0; i < Math.Abs(y); i++)
+            {
+                directions.Add(myDirection);
+            }
+            timer.Start();
+        }
+
         private void Tick(object sender, EventArgs e)
         {
             byte step = byte.Parse(SnakeHead.Size.Width.ToString());
-            if (directions.Count != 0)
+            if (autoPilot)
             {
                 direction = directions[0];
+                directions.RemoveAt(0);
             }
+            int x = 0;
+            int y = 0;
             switch (direction)
             {
                 case Direction.Up:
-                    ChangePosition(0, -step);
+                    x = 0; y = -step;
                     break;
                 case Direction.Down:
-                    ChangePosition(0, step);
+                    x = 0; y = step;
                     break;
                 case Direction.Left:
-                    ChangePosition(-step, 0);
+                    x = -step; y = 0;
                     break;
                 case Direction.Right:
-                    ChangePosition(step, 0);
+                    x = step; y = 0;
                     break;
             }
-            if (directions.Count != 0)
-            {
-                directions.RemoveAt(0);
-            }
+            CheckPosition(new Point(SnakeHead.Location.X + x, SnakeHead.Location.Y + y));
+            ChangePosition(x, y);
             if (lose)
             {
                 timer.Stop();
@@ -167,10 +159,11 @@ namespace Snake
 
         private void ChangePosition(int x, int y)
         {
-            CheckPosition(new Point(SnakeHead.Location.X + x, SnakeHead.Location.Y + y));
+
             if (!lose)
             {
                 SnakeHead.Location = new Point(SnakeHead.Location.X + x, SnakeHead.Location.Y + y);
+                AutoPilot();
                 for (int i = 1; i < snakePoints.Count; i++)
                 {
                     snakePanels[i].Location = snakePoints[i - 1];
@@ -196,10 +189,22 @@ namespace Snake
 
                 ChangeFruitLocaton();
             }
-            else if (point.X >= panel1.Width || point.X < 0 || point.Y < 0 || point.Y >= panel1.Height || PointEqually(point))
+            else if (point.X >= panel1.Width || point.X < 0 || point.Y < 0 || point.Y >= panel1.Height)
             {
                 lose = true;
                 return;
+            }
+            else if (PointEqually(point))
+            {
+                if (!autoPilot)
+                {
+                    lose = true;
+                    return;
+                }
+                else
+                {
+
+                }
             }
 
         }
@@ -237,7 +242,7 @@ namespace Snake
             while (true)
             {
                 point = new Point(rd.Next(20) * 25, rd.Next(20) * 25);
-                if (!PointEqually(point))
+                if (!PointEqually(point) && point != Fruit.Location)
                 {
                     break;
                 }
